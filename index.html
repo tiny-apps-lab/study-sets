@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study Sets</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #F4F2FF; color: #1D1B2E; margin: 0;
+         min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .card { background: #fff; border-radius: 20px; padding: 32px; width: min(92vw, 460px);
+          box-shadow: 0 10px 30px rgba(60, 40, 160, .15); text-align: center; }
+  h1 { margin: 0 0 4px; color: #4B3BD6; }
+  .progress { color: #6B6880; margin-bottom: 24px; }
+  .question { font-size: 1.4rem; font-weight: 700; min-height: 3.5em; }
+  .answer { font-size: 1.2rem; color: #0A7F5A; min-height: 1.6em; margin: 12px 0 20px; }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 12px; padding: 12px 18px;
+           margin: 4px; cursor: pointer; }
+  .main { background: #4B3BD6; color: #fff; }
+  .set { background: #E6E2FF; color: #2A1F8F; display: block; width: 100%; margin: 8px 0; }
+  .yes { background: #0B7A50; color: #fff; }
+  .no { background: #FFB547; color: #1D1B2E; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Study Sets</h1>
+  <div class="progress" id="progress">Pick a set to study</div>
+
+  <div id="picker"></div>
+
+  <div id="quiz" hidden>
+    <div class="question" id="question"></div>
+    <div class="answer" id="answer"></div>
+    <button class="main" id="show">Show answer</button>
+    <div id="grade" hidden>
+      <button class="yes" id="knew">I knew it</button>
+      <button class="no" id="notYet">Not yet</button>
+    </div>
+    <button class="main" id="back" hidden>Pick another set</button>
+    <button class="set" id="backMid">Back to sets</button>
+  </div>
+</div>
+<script>
+  // Edit these to study anything. Study facts only: never put personal details here.
+  const sets = {
+    "Science": [
+      { q: "What gas do plants take in to make their food?", a: "Carbon dioxide" },
+      { q: "What is H2O?", a: "Water" },
+      { q: "What planet is closest to the Sun?", a: "Mercury" },
+      { q: "How many legs does an insect have?", a: "Six" },
+      { q: "What force pulls things toward Earth?", a: "Gravity" }
+    ],
+    "Spanish": [
+      { q: "How do you say 'thank you'?", a: "Gracias" },
+      { q: "What does 'biblioteca' mean?", a: "Library" },
+      { q: "How do you say 'good morning'?", a: "Buenos días" },
+      { q: "What does 'perro' mean?", a: "Dog" },
+      { q: "How do you say 'see you later'?", a: "Hasta luego" }
+    ],
+    "History": [
+      { q: "In what year did World War II end?", a: "1945" },
+      { q: "Who was the first person to walk on the Moon?", a: "Neil Armstrong" },
+      { q: "In what year did the Berlin Wall fall?", a: "1989" },
+      { q: "Which ancient people built the pyramids at Giza?", a: "The Egyptians" },
+      { q: "Who was the first President of the United States?", a: "George Washington" }
+    ]
+  };
+
+  let setName = "", order = [], i = 0, score = 0;
+  const $ = (id) => document.getElementById(id);
+
+  function shuffle(list) {
+    const copy = list.slice();
+    for (let k = copy.length - 1; k > 0; k--) {
+      const j = Math.floor(Math.random() * (k + 1));
+      [copy[k], copy[j]] = [copy[j], copy[k]];
+    }
+    return copy;
+  }
+
+  function showPicker() {
+    $("progress").textContent = "Pick a set to study";
+    $("picker").hidden = false;
+    $("quiz").hidden = true;
+  }
+
+  function startSet(name) {
+    setName = name; order = shuffle(sets[name]); i = 0; score = 0;
+    $("picker").hidden = true;
+    $("quiz").hidden = false;
+    $("back").hidden = true;
+    $("backMid").hidden = false;
+    showCard();
+  }
+
+  function showCard() {
+    $("progress").textContent = setName + " · Card " + (i + 1) + " of " + order.length;
+    $("question").textContent = order[i].q;
+    $("answer").textContent = "";
+    $("show").hidden = false;
+    $("grade").hidden = true;
+  }
+
+  function grade(knewIt) {
+    if (knewIt) score++;
+    i++;
+    if (i < order.length) { showCard(); return; }
+    $("progress").textContent = setName + " · Done!";
+    $("question").textContent = "You knew " + score + " of " + order.length;
+    $("answer").textContent = score === order.length ? "Perfect round!" : "Try again to beat your score.";
+    $("grade").hidden = true;
+    $("show").hidden = true;
+    $("back").hidden = false;
+    $("backMid").hidden = true;
+  }
+
+  Object.keys(sets).forEach((name) => {
+    const b = document.createElement("button");
+    b.className = "set";
+    b.textContent = name + " (" + sets[name].length + " cards)";
+    b.onclick = () => startSet(name);
+    $("picker").appendChild(b);
+  });
+
+  $("show").onclick = () => { $("answer").textContent = order[i].a; $("show").hidden = true; $("grade").hidden = false; };
+  $("knew").onclick = () => grade(true);
+  $("notYet").onclick = () => grade(false);
+  $("back").onclick = showPicker;
+  $("backMid").onclick = showPicker;
+  showPicker();
+</script>
+</body>
+</html>
