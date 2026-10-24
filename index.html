@@ -19,6 +19,8 @@
   .set { background: #E6E2FF; color: #2A1F8F; display: block; width: 100%; margin: 8px 0; }
   .yes { background: #0B7A50; color: #fff; }
   .no { background: #FFB547; color: #1D1B2E; }
+  .best { font-weight: 700; color: #4B3BD6; margin: 14px 0 4px; }
+  .status { color: #6B6880; font-size: .9rem; margin: 6px 0 0; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -39,10 +41,16 @@
     </div>
     <button class="main" id="back" hidden>Pick another set</button>
     <button class="set" id="backMid">Back to sets</button>
+    <p class="best" id="best"></p>
+    <button class="set" id="clearBest">Clear this set's best score</button>
+    <p class="status" id="storageStatus" role="status"></p>
   </div>
+  <p class="status">Only a best-score number per set is saved, in this browser on this device.
+    Anyone using this browser profile can see or clear it. Never store personal information.</p>
 </div>
 <script>
   // Edit these to study anything. Study facts only: never put personal details here.
+  // If you change a set's questions, change its label below too (v1 → v2).
   const sets = {
     "Science": [
       { q: "What gas do plants take in to make their food?", a: "Carbon dioxide" },
@@ -70,6 +78,56 @@
   let setName = "", order = [], i = 0, score = 0;
   const $ = (id) => document.getElementById(id);
 
+  // One label per set. A label names one non-personal number; it is not a password or API key.
+  const key = (name) => "study-sets-best-" + name + "-v1";
+  const bestOf = {};
+
+  function loadBests() {
+    try {
+      Object.keys(sets).forEach((name) => {
+        const saved = localStorage.getItem(key(name));
+        const value = saved === null || saved.trim() === "" ? NaN : Number(saved);
+        bestOf[name] = Number.isInteger(value) && value >= 0 && value <= sets[name].length ? value : null;
+      });
+      $("storageStatus").textContent = "Best scores are saved here when a round finishes.";
+    } catch {
+      $("storageStatus").textContent = "Storage is unavailable. You can still study; best scores last only until reload.";
+    }
+  }
+
+  function showBest() {
+    const b = bestOf[setName];
+    $("best").textContent = setName + " best: " + (b === null || b === undefined ? "—" : b) + " of " + sets[setName].length;
+  }
+
+  function saveBest() {
+    try {
+      // The saved value is the truth: another tab may have changed it since this page opened.
+      const saved = localStorage.getItem(key(setName));
+      const value = saved === null || saved.trim() === "" ? NaN : Number(saved);
+      bestOf[setName] = Number.isInteger(value) && value >= 0 && value <= sets[setName].length ? value : null;
+      if (bestOf[setName] !== null && score <= bestOf[setName]) { $("storageStatus").textContent = "Saved best unchanged. This round did not beat it."; showBest(); return; }
+      localStorage.setItem(key(setName), String(score));
+      bestOf[setName] = score;
+      $("storageStatus").textContent = "Best score saved in this browser on this device.";
+    } catch {
+      $("storageStatus").textContent = "Could not save this round. Round result: " + score + " of " + sets[setName].length + ".";
+    }
+    showBest();
+  }
+
+  function clearBest() {
+    try {
+      // Never use localStorage.clear(): other apps may share this storage.
+      localStorage.removeItem(key(setName));
+      bestOf[setName] = null;
+      $("storageStatus").textContent = "Best score cleared for " + setName + ".";
+    } catch {
+      $("storageStatus").textContent = "Could not clear the saved best. Storage is unavailable; nothing was removed.";
+    }
+    showBest();
+  }
+
   function shuffle(list) {
     const copy = list.slice();
     for (let k = copy.length - 1; k > 0; k--) {
@@ -80,6 +138,10 @@
   }
 
   function showPicker() {
+    document.querySelectorAll("#picker button").forEach((b) => {
+      const n = b.dataset.set, best = bestOf[n];
+      b.textContent = n + " (" + sets[n].length + " cards)" + (best === null || best === undefined ? "" : " · best " + best);
+    });
     $("progress").textContent = "Pick a set to study";
     $("picker").hidden = false;
     $("quiz").hidden = true;
@@ -91,6 +153,7 @@
     $("quiz").hidden = false;
     $("back").hidden = true;
     $("backMid").hidden = false;
+    showBest();
     showCard();
   }
 
@@ -113,12 +176,14 @@
     $("show").hidden = true;
     $("back").hidden = false;
     $("backMid").hidden = true;
+    saveBest();
   }
 
   Object.keys(sets).forEach((name) => {
     const b = document.createElement("button");
     b.className = "set";
     b.textContent = name + " (" + sets[name].length + " cards)";
+    b.dataset.set = name;
     b.onclick = () => startSet(name);
     $("picker").appendChild(b);
   });
@@ -128,6 +193,10 @@
   $("notYet").onclick = () => grade(false);
   $("back").onclick = showPicker;
   $("backMid").onclick = showPicker;
+  $("clearBest").onclick = clearBest;
+  // Another tab changed or cleared a saved best: reload them and refresh what is on screen.
+  window.addEventListener("storage", () => { loadBests(); if (setName) showBest(); if (!$("picker").hidden) showPicker(); });
+  loadBests();
   showPicker();
 </script>
 </body>
